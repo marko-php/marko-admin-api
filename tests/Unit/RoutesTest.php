@@ -2,25 +2,9 @@
 
 declare(strict_types=1);
 
-use Marko\AdminApi\Config\AdminApiConfig;
-use Marko\AdminApi\Config\AdminApiConfigInterface;
 use Marko\AdminApi\Controller\MeController;
 use Marko\AdminApi\Controller\SectionController;
 use Marko\Routing\Attributes\Get;
-use Marko\Testing\Fake\FakeConfigRepository;
-
-it('creates AdminApiConfig with version and rate limit settings', function (): void {
-    $config = new AdminApiConfig(new FakeConfigRepository([
-        'admin-api.version' => 'v1',
-        'admin-api.rate_limit' => 60,
-        'admin-api.guard' => 'admin-api',
-    ]));
-
-    expect($config)->toBeInstanceOf(AdminApiConfigInterface::class)
-        ->and($config->getVersion())->toBe('v1')
-        ->and($config->getRateLimit())->toBe(60)
-        ->and($config->getGuardName())->toBe('admin-api');
-});
 
 it('registers API routes under /admin/api/v1 prefix', function (): void {
     // Verify MeController routes
@@ -71,30 +55,4 @@ it('does not conflict with admin-panel routes', function (): void {
             expect($apiRoute)->not->toBe($panelRoute);
         }
     }
-});
-
-it('has valid config/admin-api.php with default values', function (): void {
-    $configPath = dirname(__DIR__, 3) . '/config/admin-api.php';
-    $configData = require $configPath;
-
-    expect(file_exists($configPath))->toBeTrue()
-        ->and($configData)->toBeArray()
-        ->and($configData)->toHaveKey('version')
-        ->and($configData)->toHaveKey('rate_limit')
-        ->and($configData)->toHaveKey('guard')
-        ->and($configData['version'])->toBe('v1')
-        ->and($configData['rate_limit'])->toBe(60)
-        ->and($configData['guard'])->toBe('admin-api');
-});
-
-it('has module.php with AdminApiConfig binding', function (): void {
-    $modulePath = dirname(__DIR__, 3) . '/module.php';
-    $module = require $modulePath;
-
-    expect(file_exists($modulePath))->toBeTrue()
-        ->and($module)->toBeArray()
-        ->and($module)->toHaveKey('bindings')
-        ->and($module['bindings'])->toHaveKey(AdminApiConfigInterface::class)
-        ->and($module['bindings'][AdminApiConfigInterface::class])
-            ->toBe(AdminApiConfig::class);
 });

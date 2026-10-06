@@ -30,14 +30,10 @@ it('has valid composer.json with admin, admin-auth, routing, auth dependencies',
         ->and($composer['extra']['marko']['module'])->toBeTrue();
 });
 
-it('has valid module.php with bindings', function (): void {
-    $modulePath = dirname(__DIR__, 2) . '/module.php';
+it('ships no config file, module.php or config accessor, since nothing would read them', function (): void {
+    $packageDir = dirname(__DIR__, 2);
 
-    expect(file_exists($modulePath))->toBeTrue();
-
-    $config = require $modulePath;
-
-    expect($config)->toBeArray()
-        ->and($config)->toHaveKey('bindings')
-        ->and($config['bindings'])->toBeArray();
+    expect(is_dir("$packageDir/config"))->toBeFalse()
+        ->and(file_exists("$packageDir/module.php"))->toBeFalse()
+        ->and(is_dir("$packageDir/src/Config"))->toBeFalse();
 });
