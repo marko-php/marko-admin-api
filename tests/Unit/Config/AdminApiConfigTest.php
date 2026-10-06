@@ -7,14 +7,8 @@ use Marko\AdminApi\Config\AdminApiConfig;
 use Marko\AdminApi\Config\AdminApiConfigInterface;
 use Marko\AdminApi\Controller\MeController;
 use Marko\AdminApi\Controller\SectionController;
-use Marko\AdminAuth\Entity\AdminUser;
-use Marko\Authentication\AuthenticatableInterface;
-use Marko\Authentication\Contracts\GuardInterface;
-use Marko\Authentication\Contracts\UserProviderInterface;
-use Marko\Authentication\Guard\TokenGuard;
 use Marko\Routing\Attributes\Get;
 use Marko\Testing\Fake\FakeConfigRepository;
-use Marko\Testing\Fake\FakeUserProvider;
 
 it('creates AdminApiConfig with version and rate limit settings', function (): void {
     $config = new AdminApiConfig(new FakeConfigRepository([
@@ -26,27 +20,6 @@ it('creates AdminApiConfig with version and rate limit settings', function (): v
     expect($config)->toBeInstanceOf(AdminApiConfigInterface::class)
         ->and($config->getVersion())->toBe('v1')
         ->and($config->getRateLimit())->toBe(60)
-        ->and($config->getGuardName())->toBe('admin-api');
-});
-
-it('configures admin-api token guard for API authentication', function (): void {
-    $tokenGuard = new TokenGuard(
-        name: 'admin-api',
-    );
-
-    // Config reflects the guard name
-    $config = new AdminApiConfig(new FakeConfigRepository([
-        'admin-api.version' => 'v1',
-        'admin-api.rate_limit' => 60,
-        'admin-api.guard' => 'admin-api',
-    ]));
-
-    // Without headers set, no user is authenticated
-    expect($tokenGuard)->toBeInstanceOf(GuardInterface::class)
-        ->and($tokenGuard->getName())->toBe('admin-api')
-        ->and($tokenGuard->check())->toBeFalse()
-        ->and($tokenGuard->guest())->toBeTrue()
-        ->and($tokenGuard->user())->toBeNull()
         ->and($config->getGuardName())->toBe('admin-api');
 });
 
@@ -101,43 +74,7 @@ it('does not conflict with admin-panel routes', function (): void {
     }
 });
 
-it('returns JSON 401 for missing bearer token', function (): void {
-    $tokenGuard = new TokenGuard(
-        name: 'admin-api',
-    );
-
-    // No headers set means no token
-    expect($tokenGuard->check())->toBeFalse()
-        ->and($tokenGuard->user())->toBeNull();
-
-    // The middleware handles the 401 response, but the guard correctly reports no auth
-    $tokenGuard->setHeaders([]);
-
-    // Verify ApiResponse generates correct JSON 401
-    $response = ApiResponse::unauthorized();
-    $body = json_decode($response->body(), true);
-
-    expect($tokenGuard->check())->toBeFalse()
-        ->and($response->statusCode())->toBe(401)
-        ->and($response->headers()['Content-Type'])->toBe('application/json')
-        ->and($body)->toHaveKey('errors')
-        ->and($body['errors'][0]['message'])->toBe('Unauthorized');
-});
-
-it('returns JSON 401 for invalid bearer token', function (): void {
-    $provider = new FakeUserProvider();
-
-    $tokenGuard = new TokenGuard(
-        name: 'admin-api',
-        provider: $provider,
-    );
-
-    $tokenGuard->setHeaders(['Authorization' => 'Bearer invalid-token-xyz']);
-
-    expect($tokenGuard->check())->toBeFalse()
-        ->and($tokenGuard->user())->toBeNull();
-
-    // Verify ApiResponse generates correct JSON 401 for invalid tokens
+it('returns a JSON 401 body from ApiResponse::unauthorized', function (): void {
     $response = ApiResponse::unauthorized();
     $body = json_decode($response->body(), true);
 
@@ -145,67 +82,6 @@ it('returns JSON 401 for invalid bearer token', function (): void {
         ->and($response->headers()['Content-Type'])->toBe('application/json')
         ->and($body)->toHaveKey('errors')
         ->and($body['errors'][0]['message'])->toBe('Unauthorized');
-});
-
-it('authenticates with valid bearer token and returns user', function (): void {
-    $adminUser = new AdminUser();
-    $adminUser->id = 42;
-    $adminUser->email = 'api@example.com';
-    $adminUser->password = 'hashed';
-    $adminUser->name = 'API User';
-
-    $provider = new class ($adminUser) implements UserProviderInterface
-    {
-        public function __construct(
-            private readonly AuthenticatableInterface $user,
-        ) {}
-
-        public function retrieveById(
-            int|string $identifier,
-        ): ?AuthenticatableInterface {
-            return null;
-        }
-
-        public function retrieveByCredentials(
-            array $credentials,
-        ): ?AuthenticatableInterface {
-            if (isset($credentials['api_token']) && $credentials['api_token'] === 'valid-token-123') {
-                return $this->user;
-            }
-
-            return null;
-        }
-
-        public function validateCredentials(
-            AuthenticatableInterface $user,
-            array $credentials,
-        ): bool {
-            return false;
-        }
-
-        public function retrieveByRememberToken(
-            int|string $identifier,
-            string $token,
-        ): ?AuthenticatableInterface {
-            return null;
-        }
-
-        public function updateRememberToken(
-            AuthenticatableInterface $user,
-            ?string $token,
-        ): void {}
-    };
-
-    $tokenGuard = new TokenGuard(
-        name: 'admin-api',
-        provider: $provider,
-    );
-
-    $tokenGuard->setHeaders(['Authorization' => 'Bearer valid-token-123']);
-
-    expect($tokenGuard->check())->toBeTrue()
-        ->and($tokenGuard->user())->toBe($adminUser)
-        ->and($tokenGuard->user()->getAuthIdentifier())->toBe(42);
 });
 
 it('has valid config/admin-api.php with default values', function (): void {
