@@ -12,6 +12,7 @@ use Marko\AdminAuth\Entity\AdminUser;
 use Marko\AdminAuth\Entity\Role;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
 use Marko\AdminAuth\PermissionRegistry;
+use Marko\Core\Container\Container;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
 use Marko\Routing\Exceptions\HttpException;
@@ -92,7 +93,7 @@ function createTestAdminUser(
 }
 
 it('returns list of admin sections on GET /admin/api/v1/sections', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10));
     $registry->register(createTestSection('sales', 'Sales', 'cart', 20));
 
@@ -130,7 +131,7 @@ it('returns list of admin sections on GET /admin/api/v1/sections', function (): 
 });
 
 it('filters sections by user permissions', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
 
     // Catalog section with menu items requiring catalog.* permissions
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
@@ -190,7 +191,7 @@ it('filters sections by user permissions', function (): void {
 });
 
 it('returns section detail with menu items on GET /admin/api/v1/sections/{id}', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
         new MenuItem(
             id: 'products',
@@ -247,7 +248,7 @@ it('returns section detail with menu items on GET /admin/api/v1/sections/{id}', 
 });
 
 it('throws a 404 HttpException for an unknown section', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
 
     $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
     $superAdminRole = new Role();
@@ -270,7 +271,7 @@ it('throws a 404 HttpException for an unknown section', function (): void {
 });
 
 it('uses the ApiResponse envelope for every successful response', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10));
 
     $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
@@ -300,7 +301,7 @@ it('uses the ApiResponse envelope for every successful response', function (): v
 });
 
 it('shows catalog sections to a user granted the catalog wildcard permission', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
         new MenuItem(
             id: 'products',
@@ -338,7 +339,7 @@ it('shows catalog sections to a user granted the catalog wildcard permission', f
 });
 
 it('hides sections the user has no matching permission for', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
         new MenuItem(
             id: 'products',
@@ -374,7 +375,7 @@ it('hides sections the user has no matching permission for', function (): void {
 });
 
 it('shows a section to a user with the exact permission', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
         new MenuItem(
             id: 'products',
@@ -408,7 +409,7 @@ it('shows a section to a user with the exact permission', function (): void {
 });
 
 it('throws a 404 HttpException when the user cannot access any menu item in the section', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
         new MenuItem(
             id: 'products',
@@ -441,7 +442,7 @@ it('throws a 404 HttpException when the user cannot access any menu item in the 
 });
 
 it('returns the section from show for an accessible section', function (): void {
-    $registry = new AdminSectionRegistry();
+    $registry = new AdminSectionRegistry(new Container());
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
         new MenuItem(
             id: 'products',

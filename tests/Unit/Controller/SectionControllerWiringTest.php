@@ -43,7 +43,7 @@ function sectionControllerContainer(
     $container = new Container();
     $container->instance(GuardInterface::class, new FakeGuard(name: 'admin'));
     $container->instance(AdminConfigInterface::class, new SectionWiringAdminConfig());
-    $container->instance(AdminSectionRegistryInterface::class, new AdminSectionRegistry());
+    $container->instance(AdminSectionRegistryInterface::class, new AdminSectionRegistry($container));
 
     if ($withAdminAuthModule) {
         $module = require dirname((string) new ReflectionClass(PermissionRegistry::class)->getFileName(), 2)

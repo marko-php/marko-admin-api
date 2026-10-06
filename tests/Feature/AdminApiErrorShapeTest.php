@@ -90,7 +90,7 @@ function adminApiRouter(
     $container = new Container();
     $container->instance(GuardInterface::class, $guard);
     $container->instance(AdminConfigInterface::class, new ErrorShapeAdminConfig());
-    $container->instance(AdminSectionRegistryInterface::class, new AdminSectionRegistry());
+    $container->instance(AdminSectionRegistryInterface::class, new AdminSectionRegistry($container));
 
     // The permission registry comes from admin-auth's own module.php, as in production.
     $module = require dirname((string) new ReflectionClass(PermissionRegistry::class)->getFileName(), 2)
