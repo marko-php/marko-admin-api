@@ -9,8 +9,10 @@ use Marko\AdminApi\ApiResponse;
 use Marko\AdminAuth\Entity\AdminUserInterface;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
 use Marko\Authentication\Contracts\GuardInterface;
+use Marko\Authentication\Exceptions\UnauthenticatedException;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
+use Marko\Routing\Exceptions\HttpException;
 use Marko\Routing\Http\Response;
 
 #[Middleware(AdminAuthMiddleware::class)]
@@ -21,15 +23,27 @@ readonly class MeController
     ) {}
 
     /**
-     * @throws JsonException
+     * AdminAuthMiddleware has already turned guests away; a user the guard
+     * authenticated that is not an admin user gets the same 403 the
+     * middleware sends for one on a permission-gated route.
+     *
+     * @throws HttpException|JsonException|UnauthenticatedException
      */
     #[Get('/admin/api/v1/me')]
     public function me(): Response
     {
         $user = $this->guard->user();
 
+        if ($user === null) {
+            throw UnauthenticatedException::forGuard($this->guard);
+        }
+
         if (!$user instanceof AdminUserInterface) {
-            return ApiResponse::unauthorized();
+            throw new HttpException(
+                statusCode: 403,
+                message: 'Forbidden.',
+                context: "The authenticated user on guard '{$this->guard->getName()}' is not an admin user.",
+            );
         }
 
         $roles = array_map(

@@ -14,10 +14,12 @@ use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
 use Marko\AdminAuth\PermissionRegistry;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
+use Marko\Routing\Exceptions\HttpException;
 use Marko\Routing\Http\Response;
 use Marko\Testing\Fake\FakeGuard;
 use ReflectionClass;
 use ReflectionMethod;
+use RuntimeException;
 
 function createTestSection(
     string $id,
@@ -61,6 +63,18 @@ function createTestSection(
             return $this->menuItems;
         }
     };
+}
+
+function catchSectionHttpException(
+    callable $action,
+): HttpException {
+    try {
+        $action();
+    } catch (HttpException $exception) {
+        return $exception;
+    }
+
+    throw new RuntimeException('Expected the controller to throw an HttpException.');
 }
 
 function createTestAdminUser(
@@ -232,7 +246,7 @@ it('returns section detail with menu items on GET /admin/api/v1/sections/{id}', 
         ->and($body['data']['menu_items'][1]['label'])->toBe('Categories');
 });
 
-it('returns 404 when section not found', function (): void {
+it('throws a 404 HttpException for an unknown section', function (): void {
     $registry = new AdminSectionRegistry();
 
     $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
@@ -249,17 +263,13 @@ it('returns 404 when section not found', function (): void {
         permissionRegistry: new PermissionRegistry(),
     );
 
-    $response = $controller->show('nonexistent');
-    $body = json_decode($response->body(), true);
+    $exception = catchSectionHttpException(fn () => $controller->show('nonexistent'));
 
-    expect($response)->toBeInstanceOf(Response::class)
-        ->and($response->statusCode())->toBe(404)
-        ->and($response->headers()['Content-Type'])->toBe('application/json')
-        ->and($body)->toHaveKey('errors')
-        ->and($body['errors'][0]['message'])->toBe("Section 'nonexistent' not found");
+    expect($exception->getStatusCode())->toBe(404)
+        ->and($exception->getResponseData())->toBe(['message' => "Section 'nonexistent' not found"]);
 });
 
-it('uses ApiResponse format for all responses', function (): void {
+it('uses the ApiResponse envelope for every successful response', function (): void {
     $registry = new AdminSectionRegistry();
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10));
 
@@ -283,14 +293,10 @@ it('uses ApiResponse format for all responses', function (): void {
     // Show response has data and meta keys
     $showBody = json_decode($controller->show('catalog')->body(), true);
 
-    // Not found response has errors key
-    $notFoundBody = json_decode($controller->show('nonexistent')->body(), true);
-
     expect($indexBody)->toHaveKey('data')
         ->and($indexBody)->toHaveKey('meta')
         ->and($showBody)->toHaveKey('data')
-        ->and($showBody)->toHaveKey('meta')
-        ->and($notFoundBody)->toHaveKey('errors');
+        ->and($showBody)->toHaveKey('meta');
 });
 
 it('shows catalog sections to a user granted the catalog wildcard permission', function (): void {
@@ -401,7 +407,7 @@ it('shows a section to a user with the exact permission', function (): void {
         ->and($body['data'][0]['id'])->toBe('catalog');
 });
 
-it('enforces the permission filter in show for an inaccessible section', function (): void {
+it('throws a 404 HttpException when the user cannot access any menu item in the section', function (): void {
     $registry = new AdminSectionRegistry();
     $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
         new MenuItem(
@@ -428,11 +434,10 @@ it('enforces the permission filter in show for an inaccessible section', functio
         permissionRegistry: new PermissionRegistry(),
     );
 
-    $response = $controller->show('catalog');
-    $body = json_decode($response->body(), true);
+    $exception = catchSectionHttpException(fn () => $controller->show('catalog'));
 
-    expect($response->statusCode())->toBe(404)
-        ->and($body)->toHaveKey('errors');
+    expect($exception->getStatusCode())->toBe(404)
+        ->and($exception->getResponseData())->toBe(['message' => "Section 'catalog' not found"]);
 });
 
 it('returns the section from show for an accessible section', function (): void {

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Marko\AdminApi\ApiResponse;
 use Marko\AdminApi\Config\AdminApiConfig;
 use Marko\AdminApi\Config\AdminApiConfigInterface;
 use Marko\AdminApi\Controller\MeController;
@@ -72,16 +71,6 @@ it('does not conflict with admin-panel routes', function (): void {
             expect($apiRoute)->not->toBe($panelRoute);
         }
     }
-});
-
-it('returns a JSON 401 body from ApiResponse::unauthorized', function (): void {
-    $response = ApiResponse::unauthorized();
-    $body = json_decode($response->body(), true);
-
-    expect($response->statusCode())->toBe(401)
-        ->and($response->headers()['Content-Type'])->toBe('application/json')
-        ->and($body)->toHaveKey('errors')
-        ->and($body['errors'][0]['message'])->toBe('Unauthorized');
 });
 
 it('has valid config/admin-api.php with default values', function (): void {

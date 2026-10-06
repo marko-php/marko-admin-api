@@ -16,6 +16,7 @@ use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
 use Marko\Authentication\Contracts\GuardInterface;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
+use Marko\Routing\Exceptions\HttpException;
 use Marko\Routing\Http\Response;
 
 #[Middleware(AdminAuthMiddleware::class)]
@@ -58,7 +59,7 @@ readonly class SectionController
     }
 
     /**
-     * @throws JsonException
+     * @throws HttpException|JsonException
      */
     #[Get('/admin/api/v1/sections/{id}')]
     public function show(
@@ -66,14 +67,14 @@ readonly class SectionController
     ): Response {
         try {
             $section = $this->sectionRegistry->get($id);
-        } catch (AdminException) {
-            return ApiResponse::notFound("Section '$id' not found");
+        } catch (AdminException $e) {
+            throw $this->sectionNotFound($id, $e);
         }
 
         $user = $this->guard->user();
 
         if ($user instanceof AdminUserInterface && !$this->userCanAccessSection($user, $section)) {
-            return ApiResponse::notFound("Section '$id' not found");
+            throw $this->sectionNotFound($id);
         }
 
         $menuItems = array_map(
@@ -95,6 +96,21 @@ readonly class SectionController
             'sort_order' => $section->getSortOrder(),
             'menu_items' => $menuItems,
         ]);
+    }
+
+    /**
+     * An inaccessible section answers like a missing one, so the API never
+     * reveals which section IDs exist to a user who cannot see them.
+     */
+    private function sectionNotFound(
+        string $id,
+        ?AdminException $previous = null,
+    ): HttpException {
+        return new HttpException(
+            statusCode: 404,
+            message: "Section '$id' not found",
+            previous: $previous,
+        );
     }
 
     private function userCanAccessSection(

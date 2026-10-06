@@ -27,25 +27,18 @@ it('creates ApiResponse helper with success method returning data and meta', fun
         ->and($body['meta'])->toBe($meta);
 });
 
-it('creates ApiResponse helper with error method returning errors array and status code', function (): void {
-    $errors = [
-        ['field' => 'email', 'message' => 'Email is required'],
-        ['field' => 'name', 'message' => 'Name is required'],
-    ];
-
-    $response = ApiResponse::error(
-        errors: $errors,
-        statusCode: 422,
+it('creates ApiResponse helper with created method returning 201 with data and meta', function (): void {
+    $response = ApiResponse::created(
+        data: ['id' => 5],
+        meta: ['version' => '1.0'],
     );
 
-    expect($response)->toBeInstanceOf(Response::class)
-        ->and($response->statusCode())->toBe(422)
-        ->and($response->headers()['Content-Type'])->toBe('application/json');
-
-    $body = json_decode($response->body(), true);
-
-    expect($body)->toHaveKey('errors')
-        ->and($body['errors'])->toBe($errors);
+    expect($response->statusCode())->toBe(201)
+        ->and($response->headers()['Content-Type'])->toBe('application/json')
+        ->and(json_decode($response->body(), true))->toBe([
+            'data' => ['id' => 5],
+            'meta' => ['version' => '1.0'],
+        ]);
 });
 
 it('creates ApiResponse helper with paginated method including pagination meta', function (): void {
@@ -76,50 +69,12 @@ it('creates ApiResponse helper with paginated method including pagination meta',
         ->and($body['meta']['total_pages'])->toBe(3);
 });
 
-it('creates ApiResponse helper with notFound method returning 404', function (): void {
-    $response = ApiResponse::notFound(
-        message: 'Resource not found',
+it('exposes only the success envelope helpers, leaving errors to HttpException', function (): void {
+    $methods = array_map(
+        static fn (ReflectionMethod $method): string => $method->getName(),
+        new ReflectionClass(ApiResponse::class)->getMethods(ReflectionMethod::IS_PUBLIC),
     );
+    sort($methods);
 
-    expect($response)->toBeInstanceOf(Response::class)
-        ->and($response->statusCode())->toBe(404)
-        ->and($response->headers()['Content-Type'])->toBe('application/json');
-
-    $body = json_decode($response->body(), true);
-
-    expect($body)->toHaveKey('errors')
-        ->and($body['errors'])->toBeArray()
-        ->and($body['errors'][0]['message'])->toBe('Resource not found');
-});
-
-it('creates ApiResponse helper with forbidden method returning 403', function (): void {
-    $response = ApiResponse::forbidden(
-        message: 'Access denied',
-    );
-
-    expect($response)->toBeInstanceOf(Response::class)
-        ->and($response->statusCode())->toBe(403)
-        ->and($response->headers()['Content-Type'])->toBe('application/json');
-
-    $body = json_decode($response->body(), true);
-
-    expect($body)->toHaveKey('errors')
-        ->and($body['errors'])->toBeArray()
-        ->and($body['errors'][0]['message'])->toBe('Access denied');
-});
-
-it('creates ApiResponse helper with unauthorized method returning 401', function (): void {
-    $response = ApiResponse::unauthorized(
-        message: 'Authentication required',
-    );
-
-    expect($response)->toBeInstanceOf(Response::class)
-        ->and($response->statusCode())->toBe(401)
-        ->and($response->headers()['Content-Type'])->toBe('application/json');
-
-    $body = json_decode($response->body(), true);
-
-    expect($body)->toHaveKey('errors')
-        ->and($body['errors'])->toBeArray()
-        ->and($body['errors'][0]['message'])->toBe('Authentication required');
+    expect($methods)->toBe(['created', 'paginated', 'success']);
 });

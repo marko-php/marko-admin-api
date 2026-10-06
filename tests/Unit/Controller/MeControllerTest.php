@@ -8,12 +8,16 @@ use Marko\AdminApi\Controller\MeController;
 use Marko\AdminAuth\Entity\AdminUser;
 use Marko\AdminAuth\Entity\Role;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
+use Marko\Authentication\Exceptions\UnauthenticatedException;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
+use Marko\Routing\Exceptions\HttpException;
 use Marko\Routing\Http\Response;
+use Marko\Testing\Fake\FakeAuthenticatable;
 use Marko\Testing\Fake\FakeGuard;
 use ReflectionClass;
 use ReflectionMethod;
+use RuntimeException;
 
 function createMeTestAdminUser(
     array $roles = [],
@@ -64,24 +68,45 @@ it('returns current user info with roles and permissions on GET /admin/api/v1/me
         ->and($body['data']['permissions'])->toBe(['posts.create', 'posts.edit', 'posts.view']);
 });
 
-it('returns 401 when not authenticated', function (): void {
-    $guard = new FakeGuard(name: 'admin-api', attemptResult: false); // No user set
+function catchMeHttpException(
+    callable $action,
+): HttpException {
+    try {
+        $action();
+    } catch (HttpException $exception) {
+        return $exception;
+    }
+
+    throw new RuntimeException('Expected the controller to throw an HttpException.');
+}
+
+it('throws a 401 UnauthenticatedException when no user is authenticated', function (): void {
+    $controller = new MeController(
+        guard: new FakeGuard(name: 'admin-api', attemptResult: false),
+    );
+
+    $exception = catchMeHttpException(fn () => $controller->me());
+
+    expect($exception)->toBeInstanceOf(UnauthenticatedException::class)
+        ->and($exception->getStatusCode())->toBe(401)
+        ->and($exception->getResponseData())->toBe(['message' => 'Unauthorized.']);
+});
+
+it('throws a 403 HttpException when the authenticated user is not an admin user', function (): void {
+    $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
+    $guard->setUser(new FakeAuthenticatable(id: 7));
 
     $controller = new MeController(
         guard: $guard,
     );
 
-    $response = $controller->me();
-    $body = json_decode($response->body(), true);
+    $exception = catchMeHttpException(fn () => $controller->me());
 
-    expect($response)->toBeInstanceOf(Response::class)
-        ->and($response->statusCode())->toBe(401)
-        ->and($response->headers()['Content-Type'])->toBe('application/json')
-        ->and($body)->toHaveKey('errors')
-        ->and($body['errors'][0]['message'])->toBe('Unauthorized');
+    expect($exception->getStatusCode())->toBe(403)
+        ->and($exception->getResponseData())->toBe(['message' => 'Forbidden.']);
 });
 
-it('uses ApiResponse format for all responses', function (): void {
+it('uses the ApiResponse envelope for the successful response', function (): void {
     $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
 
     $editorRole = new Role();
@@ -98,19 +123,10 @@ it('uses ApiResponse format for all responses', function (): void {
         guard: $guard,
     );
 
-    // Authenticated response has data and meta keys
     $body = json_decode($controller->me()->body(), true);
 
-    // Unauthenticated response has errors key
-    $unauthGuard = new FakeGuard(name: 'admin-api', attemptResult: false);
-    $unauthController = new MeController(
-        guard: $unauthGuard,
-    );
-    $unauthBody = json_decode($unauthController->me()->body(), true);
-
     expect($body)->toHaveKey('data')
-        ->and($body)->toHaveKey('meta')
-        ->and($unauthBody)->toHaveKey('errors');
+        ->and($body)->toHaveKey('meta');
 });
 
 it('applies AdminAuthMiddleware to all routes', function (): void {
