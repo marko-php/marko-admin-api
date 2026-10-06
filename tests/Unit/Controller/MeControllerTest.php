@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Marko\AdminApi\Tests\Unit\Controller;
 
 use Marko\AdminApi\Controller\MeController;
+use Marko\AdminApi\Tests\Fixtures\FixedAdminGuardResolver;
 use Marko\AdminAuth\Entity\AdminUser;
 use Marko\AdminAuth\Entity\Role;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
@@ -48,7 +49,7 @@ it('returns current user info with roles and permissions on GET /admin/api/v1/me
     $guard->setUser($user);
 
     $controller = new MeController(
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
     );
 
     $response = $controller->me();
@@ -82,7 +83,7 @@ function catchMeHttpException(
 
 it('throws a 401 UnauthenticatedException when no user is authenticated', function (): void {
     $controller = new MeController(
-        guard: new FakeGuard(name: 'admin-api', attemptResult: false),
+        adminGuard: new FixedAdminGuardResolver(new FakeGuard(name: 'admin-api', attemptResult: false)),
     );
 
     $exception = catchMeHttpException(fn () => $controller->me());
@@ -97,7 +98,7 @@ it('throws a 403 HttpException when the authenticated user is not an admin user'
     $guard->setUser(new FakeAuthenticatable(id: 7));
 
     $controller = new MeController(
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
     );
 
     $exception = catchMeHttpException(fn () => $controller->me());
@@ -120,7 +121,7 @@ it('uses the ApiResponse envelope for the successful response', function (): voi
     ));
 
     $controller = new MeController(
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
     );
 
     $body = json_decode($controller->me()->body(), true);

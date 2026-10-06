@@ -10,10 +10,10 @@ use Marko\Admin\Contracts\AdminSectionRegistryInterface;
 use Marko\Admin\Contracts\MenuItemInterface;
 use Marko\Admin\Exceptions\AdminException;
 use Marko\AdminApi\ApiResponse;
+use Marko\AdminAuth\AdminGuardResolver;
 use Marko\AdminAuth\Contracts\PermissionRegistryInterface;
 use Marko\AdminAuth\Entity\AdminUserInterface;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
-use Marko\Authentication\Contracts\GuardInterface;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
 use Marko\Routing\Exceptions\HttpException;
@@ -24,7 +24,7 @@ readonly class SectionController
 {
     public function __construct(
         private AdminSectionRegistryInterface $sectionRegistry,
-        private GuardInterface $guard,
+        private AdminGuardResolver $adminGuard,
         private PermissionRegistryInterface $permissionRegistry,
     ) {}
 
@@ -35,7 +35,7 @@ readonly class SectionController
     public function index(): Response
     {
         $sections = $this->sectionRegistry->all();
-        $user = $this->guard->user();
+        $user = $this->adminGuard->guard()->user();
 
         if ($user instanceof AdminUserInterface) {
             $sections = array_filter(
@@ -71,7 +71,7 @@ readonly class SectionController
             throw $this->sectionNotFound($id, $e);
         }
 
-        $user = $this->guard->user();
+        $user = $this->adminGuard->guard()->user();
 
         if ($user instanceof AdminUserInterface && !$this->userCanAccessSection($user, $section)) {
             throw $this->sectionNotFound($id);

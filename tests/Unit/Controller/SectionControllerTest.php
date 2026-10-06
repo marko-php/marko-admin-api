@@ -8,6 +8,7 @@ use Marko\Admin\AdminSectionRegistry;
 use Marko\Admin\Contracts\AdminSectionInterface;
 use Marko\Admin\MenuItem;
 use Marko\AdminApi\Controller\SectionController;
+use Marko\AdminApi\Tests\Fixtures\FixedAdminGuardResolver;
 use Marko\AdminAuth\Entity\AdminUser;
 use Marko\AdminAuth\Entity\Role;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
@@ -107,7 +108,7 @@ it('returns list of admin sections on GET /admin/api/v1/sections', function (): 
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -178,7 +179,7 @@ it('filters sections by user permissions', function (): void {
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -221,7 +222,7 @@ it('returns section detail with menu items on GET /admin/api/v1/sections/{id}', 
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -260,7 +261,7 @@ it('throws a 404 HttpException for an unknown section', function (): void {
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -284,7 +285,7 @@ it('uses the ApiResponse envelope for every successful response', function (): v
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -327,7 +328,7 @@ it('shows catalog sections to a user granted the catalog wildcard permission', f
     $permissionRegistry = new PermissionRegistry();
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: $permissionRegistry,
     );
 
@@ -364,7 +365,7 @@ it('hides sections the user has no matching permission for', function (): void {
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -397,7 +398,7 @@ it('shows a section to a user with the exact permission', function (): void {
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -431,7 +432,7 @@ it('throws a 404 HttpException when the user cannot access any menu item in the 
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 
@@ -464,7 +465,7 @@ it('returns the section from show for an accessible section', function (): void 
 
     $controller = new SectionController(
         sectionRegistry: $registry,
-        guard: $guard,
+        adminGuard: new FixedAdminGuardResolver($guard),
         permissionRegistry: new PermissionRegistry(),
     );
 

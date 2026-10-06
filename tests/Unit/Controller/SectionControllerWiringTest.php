@@ -8,10 +8,11 @@ use Marko\Admin\AdminSectionRegistry;
 use Marko\Admin\Config\AdminConfigInterface;
 use Marko\Admin\Contracts\AdminSectionRegistryInterface;
 use Marko\AdminApi\Controller\SectionController;
+use Marko\AdminApi\Tests\Fixtures\FixedAdminGuardResolver;
+use Marko\AdminAuth\AdminGuardResolver;
 use Marko\AdminAuth\Contracts\PermissionRegistryInterface;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
 use Marko\AdminAuth\PermissionRegistry;
-use Marko\Authentication\Contracts\GuardInterface;
 use Marko\Core\Container\BindingRegistry;
 use Marko\Core\Container\Container;
 use Marko\Core\Exceptions\BindingException;
@@ -41,7 +42,7 @@ function sectionControllerContainer(
     bool $withAdminAuthModule,
 ): Container {
     $container = new Container();
-    $container->instance(GuardInterface::class, new FakeGuard(name: 'admin'));
+    $container->instance(AdminGuardResolver::class, new FixedAdminGuardResolver(new FakeGuard(name: 'admin')));
     $container->instance(AdminConfigInterface::class, new SectionWiringAdminConfig());
     $container->instance(AdminSectionRegistryInterface::class, new AdminSectionRegistry($container));
 

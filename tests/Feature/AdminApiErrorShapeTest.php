@@ -10,13 +10,14 @@ use Marko\Admin\Contracts\AdminSectionRegistryInterface;
 use Marko\AdminApi\ApiResponse;
 use Marko\AdminApi\Controller\MeController;
 use Marko\AdminApi\Controller\SectionController;
+use Marko\AdminApi\Tests\Fixtures\FixedAdminGuardResolver;
+use Marko\AdminAuth\AdminGuardResolver;
 use Marko\AdminAuth\Attributes\RequiresPermission;
 use Marko\AdminAuth\Entity\AdminUser;
 use Marko\AdminAuth\Entity\Role;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
 use Marko\AdminAuth\PermissionRegistry;
 use Marko\Authentication\AuthenticatableInterface;
-use Marko\Authentication\Contracts\GuardInterface;
 use Marko\Core\Container\BindingRegistry;
 use Marko\Core\Container\Container;
 use Marko\Core\Module\ModuleManifest;
@@ -88,7 +89,7 @@ function adminApiRouter(
     }
 
     $container = new Container();
-    $container->instance(GuardInterface::class, $guard);
+    $container->instance(AdminGuardResolver::class, new FixedAdminGuardResolver($guard));
     $container->instance(AdminConfigInterface::class, new ErrorShapeAdminConfig());
     $container->instance(AdminSectionRegistryInterface::class, new AdminSectionRegistry($container));
 

@@ -8,12 +8,13 @@ use Marko\Admin\AdminSectionRegistry;
 use Marko\Admin\Config\AdminConfigInterface;
 use Marko\Admin\Discovery\AdminSectionCacheContributor;
 use Marko\AdminApi\Controller\SectionController;
+use Marko\AdminApi\Tests\Fixtures\FixedAdminGuardResolver;
+use Marko\AdminAuth\AdminGuardResolver;
 use Marko\AdminAuth\Contracts\PermissionRegistryInterface;
 use Marko\AdminAuth\Entity\AdminUser;
 use Marko\AdminAuth\Entity\Role;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
 use Marko\AdminAuth\PermissionRegistry;
-use Marko\Authentication\Contracts\GuardInterface;
 use Marko\Core\Command\Input;
 use Marko\Core\Command\Output;
 use Marko\Core\Commands\DiscoveryCacheCommand;
@@ -174,7 +175,7 @@ it('returns a section declared only by attribute from GET /admin/api/v1/sections
 
     $container = new Container();
     $container->instance(ContainerInterface::class, $container);
-    $container->instance(GuardInterface::class, $guard);
+    $container->instance(AdminGuardResolver::class, new FixedAdminGuardResolver($guard));
     $container->instance(AdminConfigInterface::class, new SectionBootAdminConfig());
     $container->instance(CachedDiscovery::class, new CachedDiscovery());
     $container->instance(ModuleRepositoryInterface::class, new ModuleRepository($modules));

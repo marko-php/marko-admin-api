@@ -6,9 +6,9 @@ namespace Marko\AdminApi\Controller;
 
 use JsonException;
 use Marko\AdminApi\ApiResponse;
+use Marko\AdminAuth\AdminGuardResolver;
 use Marko\AdminAuth\Entity\AdminUserInterface;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
-use Marko\Authentication\Contracts\GuardInterface;
 use Marko\Authentication\Exceptions\UnauthenticatedException;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
@@ -19,7 +19,7 @@ use Marko\Routing\Http\Response;
 readonly class MeController
 {
     public function __construct(
-        private GuardInterface $guard,
+        private AdminGuardResolver $adminGuard,
     ) {}
 
     /**
@@ -32,17 +32,18 @@ readonly class MeController
     #[Get('/admin/api/v1/me')]
     public function me(): Response
     {
-        $user = $this->guard->user();
+        $guard = $this->adminGuard->guard();
+        $user = $guard->user();
 
         if ($user === null) {
-            throw UnauthenticatedException::forGuard($this->guard);
+            throw UnauthenticatedException::forGuard($guard);
         }
 
         if (!$user instanceof AdminUserInterface) {
             throw new HttpException(
                 statusCode: 403,
                 message: 'Forbidden.',
-                context: "The authenticated user on guard '{$this->guard->getName()}' is not an admin user.",
+                context: "The authenticated user on guard '{$guard->getName()}' is not an admin user.",
             );
         }
 
