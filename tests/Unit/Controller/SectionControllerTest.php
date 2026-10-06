@@ -18,6 +18,7 @@ use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
 use Marko\Routing\Exceptions\HttpException;
 use Marko\Routing\Http\Response;
+use Marko\Testing\Fake\FakeAuthenticatable;
 use Marko\Testing\Fake\FakeGuard;
 use ReflectionClass;
 use ReflectionMethod;
@@ -474,6 +475,64 @@ it('returns the section from show for an accessible section', function (): void 
 
     expect($response->statusCode())->toBe(200)
         ->and($body['data']['id'])->toBe('catalog');
+});
+
+function createSectionControllerFor(
+    FakeGuard $guard,
+): SectionController {
+    $registry = new AdminSectionRegistry(new Container());
+    $registry->register(createTestSection('catalog', 'Catalog', 'box', 10, [
+        new MenuItem(
+            id: 'products',
+            label: 'Products',
+            url: '/admin/catalog/products',
+            permission: 'catalog.products.view',
+        ),
+    ]));
+    $registry->register(createTestSection('dashboard', 'Dashboard', 'home', 0));
+
+    return new SectionController(
+        sectionRegistry: $registry,
+        adminGuard: new FixedAdminGuardResolver($guard),
+        permissionRegistry: new PermissionRegistry(),
+    );
+}
+
+it('lists no sections for an authenticated user that is not an admin user', function (): void {
+    $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
+    $guard->setUser(new FakeAuthenticatable(id: 7));
+
+    $body = json_decode(createSectionControllerFor($guard)->index()->body(), true);
+
+    expect($body['data'])->toBe([]);
+});
+
+it('lists no sections when no user is authenticated', function (): void {
+    $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
+
+    $body = json_decode(createSectionControllerFor($guard)->index()->body(), true);
+
+    expect($body['data'])->toBe([]);
+});
+
+it('throws a 404 HttpException from show for an authenticated user that is not an admin user', function (): void {
+    $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
+    $guard->setUser(new FakeAuthenticatable(id: 7));
+    $controller = createSectionControllerFor($guard);
+
+    $exception = catchSectionHttpException(fn () => $controller->show('catalog'));
+
+    expect($exception->getStatusCode())->toBe(404)
+        ->and($exception->getResponseData())->toBe(['message' => "Section 'catalog' not found"]);
+});
+
+it('throws a 404 HttpException from show when no user is authenticated', function (): void {
+    $guard = new FakeGuard(name: 'admin-api', attemptResult: false);
+    $controller = createSectionControllerFor($guard);
+
+    $exception = catchSectionHttpException(fn () => $controller->show('dashboard'));
+
+    expect($exception->getStatusCode())->toBe(404);
 });
 
 it('applies AdminAuthMiddleware to all routes', function (): void {

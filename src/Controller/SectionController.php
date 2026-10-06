@@ -14,6 +14,7 @@ use Marko\AdminAuth\AdminGuardResolver;
 use Marko\AdminAuth\Contracts\PermissionRegistryInterface;
 use Marko\AdminAuth\Entity\AdminUserInterface;
 use Marko\AdminAuth\Middleware\AdminAuthMiddleware;
+use Marko\Authentication\AuthenticatableInterface;
 use Marko\Routing\Attributes\Get;
 use Marko\Routing\Attributes\Middleware;
 use Marko\Routing\Exceptions\HttpException;
@@ -34,16 +35,11 @@ readonly class SectionController
     #[Get('/admin/api/v1/sections')]
     public function index(): Response
     {
-        $sections = $this->sectionRegistry->all();
         $user = $this->adminGuard->guard()->user();
-
-        if ($user instanceof AdminUserInterface) {
-            $sections = array_filter(
-                $sections,
-                fn (AdminSectionInterface $section): bool => $this->userCanAccessSection($user, $section),
-            );
-            $sections = array_values($sections);
-        }
+        $sections = array_values(array_filter(
+            $this->sectionRegistry->all(),
+            fn (AdminSectionInterface $section): bool => $this->userCanAccessSection($user, $section),
+        ));
 
         $data = array_map(
             static fn (AdminSectionInterface $section): array => [
@@ -73,7 +69,7 @@ readonly class SectionController
 
         $user = $this->adminGuard->guard()->user();
 
-        if ($user instanceof AdminUserInterface && !$this->userCanAccessSection($user, $section)) {
+        if (!$this->userCanAccessSection($user, $section)) {
             throw $this->sectionNotFound($id);
         }
 
@@ -113,10 +109,19 @@ readonly class SectionController
         );
     }
 
+    /**
+     * Only an admin user can see a section. AdminAuthMiddleware already rejects
+     * anyone else; this keeps the controller closed on its own if it is ever
+     * reached without that middleware.
+     */
     private function userCanAccessSection(
-        AdminUserInterface $user,
+        ?AuthenticatableInterface $user,
         AdminSectionInterface $section,
     ): bool {
+        if (!$user instanceof AdminUserInterface) {
+            return false;
+        }
+
         $menuItems = $section->getMenuItems();
 
         if (empty($menuItems)) {
